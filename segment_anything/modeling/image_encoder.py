@@ -103,15 +103,22 @@ class ImageEncoderViT(nn.Module):
             LayerNorm2d(out_chans),
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, return_ee: bool = False) -> torch.Tensor:
         x = self.patch_embed(x)
         if self.pos_embed is not None:
             x = x + self.pos_embed
 
+        ee = []
         for blk in self.blocks:
             x = blk(x)
+            ee.append(self.neck(x.permute(0, 3, 1, 2)))
 
         x = self.neck(x.permute(0, 3, 1, 2))
+        
+        ee = torch.stack(ee, dim=0)
+
+        if return_ee:
+            return x, ee
 
         return x
 
