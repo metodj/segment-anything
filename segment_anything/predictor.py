@@ -89,10 +89,49 @@ class SamPredictor:
         input_image = self.model.preprocess(transformed_image)
         start_time = time.time()
         features, features_ee = self.model.image_encoder(input_image, return_ee=True)
-        print("Time for image encoder: ", time.time() - start_time)
+        # print("Time for image encoder: ", time.time() - start_time)
+
+        # print(self.cosine_similarity(features_ee).shape)
+        # print(self.cosine_similarity_efficient(features_ee).shape)
+        # print(torch.allclose(self.cosine_similarity(features_ee), self.cosine_similarity_efficient(features_ee)))
+
         self.features = features
         self.features_ee = features_ee
+        self.h_cos_sim = self.cosine_similarity_efficient(features_ee)
         self.is_image_set = True
+
+    
+    @staticmethod
+    def cosine_similarity(h: torch.Tensor) -> torch.Tensor:
+        L, B, _, H, W = h.shape
+
+        cos_sim = torch.empty((L - 1, B, H, W), dtype=h.dtype, device=h.device)
+
+        for t in range(1, L):
+            for i in range(H):
+                for j in range(W):
+                    cos_sim[t-1, :, i, j] = torch.nn.functional.cosine_similarity(
+                        h[t, :, :, i, j],
+                        h[t-1, :, :, i, j],
+                        dim=1
+                    )
+
+        return cos_sim
+    
+
+    @staticmethod
+    def cosine_similarity_efficient(h: torch.Tensor) -> torch.Tensor:
+        L, B, D, H, W = h.shape
+
+        h_t = h[1:].view(L - 1, B, D, -1)  # Shape: (11, B, 256, 64, 64)
+        h_t_minus_1 = h[:-1].view(L - 1, B, D, -1)  # Shape: (11, B, 256, 64, 64)
+
+        cos_sim = torch.nn.functional.cosine_similarity(h_t, h_t_minus_1, dim=2)
+
+        cos_sim = cos_sim.view(L - 1, B, H, W)
+
+        return cos_sim
+        
 
     def predict(
         self,
