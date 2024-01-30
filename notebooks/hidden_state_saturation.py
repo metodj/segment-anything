@@ -19,17 +19,21 @@ sam.to(device=device)
 mask_generator = SamAutomaticMaskGenerator(sam, points_per_side=16)
 
 sa_1b_path = '/mnt/hdd/datasets/SA-1B-1/'
-N = 1000
+N = 2000
 
 masks_all = []
-cos_sim_all = []
-for i in tqdm(range(1, N + 1)):
+# cos_sim_all = []
+for i in tqdm(range(1000, N + 1)):
     image = cv2.imread(f'{sa_1b_path}/sa_{i}.jpg')
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     masks = mask_generator.generate(image)
     masks_all.append(len(masks))
-    cos_sim_all.append(mask_generator.predictor.h_cos_sim.detach().cpu().numpy())
+    # cos_sim_all.append(mask_generator.predictor.h_cos_sim.detach().cpu().numpy())
+    with open(f"outputs/sa1b_cos_sim/{i}.pkl", "wb") as f:
+        pickle.dump(mask_generator.predictor.h_cos_sim.detach().cpu().numpy(), f)
+
+    mask_generator.predictor.reset_image()
 
     if i >= N:
         break
@@ -38,6 +42,5 @@ for i in tqdm(range(1, N + 1)):
 with open(f"outputs/sa1b_masks_all.pkl", "wb") as f:
     pickle.dump(masks_all, f)
 
-with open(f"outputs/sa1b_cos_sim_all.pkl", "wb") as f:
-    pickle.dump(cos_sim_all, f)
+
 
